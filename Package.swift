@@ -12,7 +12,7 @@ let package = Package(
             targets: ["WhisperKit-iOS-Demo"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mlc-ai/WhisperKit.git", .upToNextMajor(from: "0.2.0")),
+        .package(url: "https://github.com/argmaxinc/WhisperKit.git", .upToNextMajor(from: "0.2.0")),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
     ],
     targets: [
