@@ -1,5 +1,6 @@
-# Ignore the duplicate AudioProcessor.swift in Audio directory
+# Ignore duplicate files
 WhisperKitDemo/Audio/AudioProcessor.swift
+WhisperKitDemo/Utilities/TranscriptionFormatter.swift
 
 # General
 .DS_Store
