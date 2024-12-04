@@ -1,0 +1,1 @@
+// ErrorModel.swift

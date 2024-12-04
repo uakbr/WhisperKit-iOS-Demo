@@ -1,0 +1,1 @@
+// LoggingManager.swift

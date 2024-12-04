@@ -1,0 +1,1 @@
+// TranscriptionManager.swift
