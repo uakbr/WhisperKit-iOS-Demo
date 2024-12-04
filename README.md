@@ -186,7 +186,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- [WhisperKit](https://github.com/mlc-ai/whisperkit) - Core transcription engine
+- [WhisperKit](https://github.com/argmaxinc/WhisperKit) - Core transcription engine
 - [OpenAI Whisper](https://github.com/openai/whisper) - Original Whisper model
 
 ## Support
