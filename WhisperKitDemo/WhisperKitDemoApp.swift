@@ -10,7 +10,7 @@ import SwiftUI
 
 @main
 struct WhisperKitDemoApp: App {
-    private let dependencies = DependencyContainer()
+    @StateObject private var dependencies = DependencyContainer()
     
     var body: some Scene {
         WindowGroup {
@@ -25,12 +25,12 @@ struct WhisperKitDemoApp: App {
 }
 
 /// Container for dependency injection
-class DependencyContainer {
+class DependencyContainer: ObservableObject {
     // MARK: - Core Dependencies
     
-    private let errorRecoveryManager = ErrorRecoveryManager()
-    private let stateRecoveryManager = StateRecoveryManager()
-    private let crashReporter = CrashReporter()
+    private let errorRecoveryManager: ErrorRecoveryManager
+    private let stateRecoveryManager: StateRecoveryManager
+    private let crashReporter: CrashReporter
     private let fileManager: FileManaging
     private let errorManager: ErrorHandling
     private let logger: Logging
@@ -45,6 +45,10 @@ class DependencyContainer {
     
     init() {
         // Initialize core dependencies
+        self.errorRecoveryManager = ErrorRecoveryManager()
+        self.stateRecoveryManager = StateRecoveryManager()
+        self.crashReporter = CrashReporter()
+        
         let loggingManager = LoggingManager()
         self.logger = loggingManager
         
@@ -57,7 +61,7 @@ class DependencyContainer {
         
         let fileManager = AudioFileManager(
             errorManager: errorManager,
-            logger: logger
+            logger: loggingManager
         )
         self.fileManager = fileManager
         
@@ -65,32 +69,32 @@ class DependencyContainer {
         let modelManager = ModelManager(
             fileManager: fileManager,
             errorManager: errorManager,
-            logger: logger
+            logger: loggingManager
         )
         self.modelManager = modelManager
         
         self.audioModel = AudioModel(
             fileManager: fileManager,
             errorManager: errorManager,
-            logger: logger
+            logger: loggingManager
         )
         
         let transcriptionManager = TranscriptionManager(
             modelManager: modelManager,
             errorManager: errorManager,
-            logger: logger
+            logger: loggingManager
         )
         
         self.transcriptionModel = TranscriptionModel(
             transcriptionManager: transcriptionManager,
             fileManager: fileManager,
             errorManager: errorManager,
-            logger: logger
+            logger: loggingManager
         )
         
         self.settingsModel = SettingsModel(
             errorManager: errorManager,
-            logger: logger
+            logger: loggingManager
         )
         
         self.errorModel = ErrorModel(
