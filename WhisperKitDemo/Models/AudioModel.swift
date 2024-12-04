@@ -9,6 +9,14 @@
 import Foundation
 import AVFoundation
 import Combine
+import os.log
+
+/// Extension to add scoped logging capability to Logging protocol
+extension Logging {
+    func scoped(for category: String) -> Logging {
+        return ScopedLogger(logger: self, category: category)
+    }
+}
 
 /// Model class representing the audio state and operations
 public class AudioModel: ObservableObject {
@@ -38,7 +46,7 @@ public class AudioModel: ObservableObject {
          logger: Logging) {
         self.fileManager = fileManager
         self.errorManager = errorManager
-        self.logger = logger.scoped(for: "AudioModel")
+        self.logger = logger.scoped(for: "Audio")
         
         setupAudioSession()
         setupAudioEngine()
@@ -74,7 +82,7 @@ public class AudioModel: ObservableObject {
             try engine.start()
             isRecording = true
             audioURL = outputURL
-            logger.info("Started recording to file: \(fileName)")
+            logger.debug("Started recording to file: \(fileName)")
             
         } catch {
             errorManager.handle(.audioStreamError("Failed to start recording: \(error.localizedDescription)"))
@@ -90,7 +98,7 @@ public class AudioModel: ObservableObject {
         audioFile = nil
         isRecording = false
         
-        logger.info("Stopped recording")
+        logger.debug("Stopped recording")
     }
     
     /// Loads an audio file for playback
@@ -101,10 +109,11 @@ public class AudioModel: ObservableObject {
             
             audioFile = try AVAudioFile(forReading: url)
             audioURL = url
-            audioFileDuration = Double(audioFile?.length ?? 0) / audioFile?.processingFormat.sampleRate ?? 44100.0
+            let sampleRate = audioFile?.processingFormat.sampleRate ?? 44100.0
+            audioFileDuration = Double(audioFile?.length ?? 0) / sampleRate
             needsFileScheduled = true
             
-            logger.info("Loaded audio file: \(url.lastPathComponent)")
+            logger.debug("Loaded audio file: \(url.lastPathComponent)")
         } catch {
             errorManager.handle(.audioStreamError("Failed to load audio file: \(error.localizedDescription)"))
         }
@@ -128,7 +137,7 @@ public class AudioModel: ObservableObject {
             isPlaying = true
             startPlaybackTimeObserver()
             
-            logger.info("Started playback")
+            logger.debug("Started playback")
         } catch {
             errorManager.handle(.audioStreamError("Failed to start playback: \(error.localizedDescription)"))
         }
@@ -142,7 +151,7 @@ public class AudioModel: ObservableObject {
         isPlaying = false
         stopPlaybackTimeObserver()
         
-        logger.info("Paused playback")
+        logger.debug("Paused playback")
     }
     
     /// Stops audio playback
@@ -153,7 +162,7 @@ public class AudioModel: ObservableObject {
         needsFileScheduled = true
         stopPlaybackTimeObserver()
         
-        logger.info("Stopped playback")
+        logger.debug("Stopped playback")
     }
     
     /// Seeks to a specific time in the audio
@@ -177,6 +186,8 @@ public class AudioModel: ObservableObject {
         if wasPlaying {
             startPlayback()
         }
+        
+        logger.debug("Seeked to time: \(time)")
     }
     
     // MARK: - Private Methods
