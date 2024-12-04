@@ -27,7 +27,7 @@ let package = Package(
         .testTarget(
             name: "WhisperKit-iOS-DemoTests",
             dependencies: ["WhisperKit-iOS-Demo"],
-            path: "WhisperKitDemoTests"
+            path: "Tests"
         ),
     ]
 )
