@@ -3,6 +3,7 @@
 
 ## Repository Structure
 
+```
 WhisperKitDemo/
 ├── .gitignore
 │   └── Specifies files and directories to exclude from version control.
@@ -110,3 +111,4 @@ WhisperKitDemo/
 │       └── Entry point for the SwiftUI application.
 └── README.md
     └── Provides an overview and setup instructions for the project.
+```
