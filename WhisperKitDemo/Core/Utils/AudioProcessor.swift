@@ -1,19 +1,35 @@
+//
+// AudioProcessor.swift
+// WhisperKitDemo
+//
+// Created by Claude on 2024-03-12.
+// Copyright © 2024 Anthropic. All rights reserved.
+//
+
 import Foundation
 import AVFoundation
 import Accelerate
 
 /// General audio processing utilities
-class AudioProcessor {
+public class AudioProcessor {
     // MARK: - Properties
+    
     private let bufferSize: AVAudioFrameCount = 4096
     private var fftSetup: vDSP_DFT_Setup?
+    
+    private let audioEngine: AVAudioEngine
+    private let errorManager: ErrorHandling
     
     // Audio settings
     private let sampleRate: Double = 16000  // WhisperKit requirement
     private let channelCount: AVAudioChannelCount = 1
     
     // MARK: - Initialization
-    init() {
+    
+    init(audioEngine: AVAudioEngine, errorManager: ErrorHandling) {
+        self.audioEngine = audioEngine
+        self.errorManager = errorManager
+        
         fftSetup = vDSP_DFT_zop_CreateSetup(
             nil,
             UInt(bufferSize),
@@ -28,7 +44,30 @@ class AudioProcessor {
     }
     
     // MARK: - Public Methods
-    func normalizeAudio(_ buffer: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
+    
+    /// Converts an audio buffer to a standardized format
+    public func standardize(_ buffer: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
+        guard let format = buffer.format.standardizedFormat else {
+            throw AudioProcessingError.invalidBuffer
+        }
+        
+        guard let convertedBuffer = AVAudioPCMBuffer(
+            pcmFormat: format,
+            frameCapacity: buffer.frameLength
+        ) else {
+            throw AudioProcessingError.bufferCreationFailed
+        }
+        
+        do {
+            try convert(buffer: buffer, to: convertedBuffer)
+            return convertedBuffer
+        } catch {
+            throw AudioProcessingError.processingFailed
+        }
+    }
+    
+    /// Normalizes audio levels in the buffer
+    public func normalizeAudio(_ buffer: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
         guard let outputBuffer = createBuffer(like: buffer) else {
             throw AudioProcessingError.bufferCreationFailed
         }
@@ -60,7 +99,8 @@ class AudioProcessor {
         return outputBuffer
     }
     
-    func removeSilence(from buffer: AVAudioPCMBuffer, threshold: Float = 0.02) throws -> AVAudioPCMBuffer {
+    /// Removes silent segments from audio
+    public func removeSilence(from buffer: AVAudioPCMBuffer, threshold: Float = 0.02) throws -> AVAudioPCMBuffer {
         let frameCount = Int(buffer.frameLength)
         var activeFrames: [Float] = []
         
@@ -96,7 +136,8 @@ class AudioProcessor {
         return outputBuffer
     }
     
-    func detectSpeechSegments(in buffer: AVAudioPCMBuffer, minimumDuration: TimeInterval = 0.5) throws -> [TimeRange] {
+    /// Detects speech segments in audio
+    public func detectSpeechSegments(in buffer: AVAudioPCMBuffer, minimumDuration: TimeInterval = 0.5) throws -> [TimeRange] {
         let frameCount = Int(buffer.frameLength)
         guard let inputData = buffer.floatChannelData?[0] else {
             throw AudioProcessingError.invalidBuffer
@@ -149,6 +190,23 @@ class AudioProcessor {
     }
     
     // MARK: - Private Methods
+    
+    private func convert(buffer source: AVAudioPCMBuffer, to destination: AVAudioPCMBuffer) throws {
+        let converter = AVAudioConverter(from: source.format, to: destination.format)
+        
+        var error: NSError?
+        let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+            outStatus.pointee = .haveData
+            return source
+        }
+        
+        converter?.convert(to: destination, error: &error, withInputFrom: inputBlock)
+        
+        if let error = error {
+            throw error
+        }
+    }
+    
     private func createBuffer(like buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
         return AVAudioPCMBuffer(
             pcmFormat: buffer.format,
@@ -166,21 +224,22 @@ class AudioProcessor {
 }
 
 // MARK: - Supporting Types
-struct TimeRange {
-    let start: TimeInterval
-    let end: TimeInterval
+
+public struct TimeRange {
+    public let start: TimeInterval
+    public let end: TimeInterval
     
-    var duration: TimeInterval {
+    public var duration: TimeInterval {
         return end - start
     }
 }
 
-enum AudioProcessingError: Error {
+public enum AudioProcessingError: Error {
     case bufferCreationFailed
     case invalidBuffer
     case processingFailed
     
-    var localizedDescription: String {
+    public var localizedDescription: String {
         switch self {
         case .bufferCreationFailed:
             return "Failed to create audio buffer"
@@ -189,5 +248,14 @@ enum AudioProcessingError: Error {
         case .processingFailed:
             return "Audio processing operation failed"
         }
+    }
+}
+
+private extension AVAudioFormat {
+    var standardizedFormat: AVAudioFormat? {
+        return AVAudioFormat(
+            standardFormatWithSampleRate: sampleRate,
+            channels: channelCount
+        )
     }
 }
