@@ -46,6 +46,46 @@ protocol Logging {
     func warning(_ message: String, category: String?)
     func error(_ message: String, category: String?)
     func critical(_ message: String, category: String?)
+    func scoped(for category: String) -> Logging
+}
+
+/// A wrapper class that provides scoped logging with a fixed category
+class ScopedLogger: Logging {
+    private let logger: Logging
+    private let category: String
+    
+    init(logger: Logging, category: String) {
+        self.logger = logger
+        self.category = category
+    }
+    
+    func log(_ message: String, level: LogLevel, category: String?) {
+        logger.log(message, level: level, category: self.category)
+    }
+    
+    func debug(_ message: String, category: String?) {
+        logger.debug(message, category: self.category)
+    }
+    
+    func info(_ message: String, category: String?) {
+        logger.info(message, category: self.category)
+    }
+    
+    func warning(_ message: String, category: String?) {
+        logger.warning(message, category: self.category)
+    }
+    
+    func error(_ message: String, category: String?) {
+        logger.error(message, category: self.category)
+    }
+    
+    func critical(_ message: String, category: String?) {
+        logger.critical(message, category: self.category)
+    }
+    
+    func scoped(for category: String) -> Logging {
+        return ScopedLogger(logger: logger, category: category)
+    }
 }
 
 /// Manager class responsible for centralized logging across the application
@@ -55,7 +95,6 @@ public final class LoggingManager: Logging {
     
     private let subsystem = Bundle.main.bundleIdentifier ?? "com.anthropic.whisperkit.demo"
     private var osLog: OSLog
-    private let fileManager: FileManaging
     private let dateFormatter: DateFormatter
     private let logFileURL: URL
     
@@ -67,8 +106,7 @@ public final class LoggingManager: Logging {
     
     // MARK: - Initialization
     
-    init(fileManager: FileManaging) {
-        self.fileManager = fileManager
+    init() {
         self.osLog = OSLog(subsystem: subsystem, category: "default")
         
         self.dateFormatter = DateFormatter()
@@ -124,6 +162,10 @@ public final class LoggingManager: Logging {
         log(message, level: .critical, category: category)
     }
     
+    public func scoped(for category: String) -> Logging {
+        return ScopedLogger(logger: self, category: category)
+    }
+    
     // MARK: - Private Methods
     
     private func setupLogFile() {
@@ -163,80 +205,5 @@ public final class LoggingManager: Logging {
         
         try FileManager.default.moveItem(at: logFileURL, to: backupURL)
         FileManager.default.createFile(atPath: logFileURL.path, contents: nil)
-    }
-    
-    // MARK: - Log Analytics
-    
-    /// Retrieves logs for a specific date range
-    /// - Parameters:
-    ///   - startDate: Start date for log retrieval
-    ///   - endDate: End date for log retrieval
-    /// - Returns: Array of log entries
-    public func getLogs(from startDate: Date, to endDate: Date) throws -> [String] {
-        guard let data = FileManager.default.contents(atPath: logFileURL.path),
-              let content = String(data: data, encoding: .utf8) else {
-            return []
-        }
-        
-        return content.components(separatedBy: .newlines)
-            .filter { line in
-                guard let dateStr = line.components(separatedBy: " ").first,
-                      let date = dateFormatter.date(from: dateStr) else {
-                    return false
-                }
-                return date >= startDate && date <= endDate
-            }
-    }
-    
-    /// Clears all logs
-    public func clearLogs() throws {
-        try FileManager.default.removeItem(at: logFileURL)
-        FileManager.default.createFile(atPath: logFileURL.path, contents: nil)
-    }
-}
-
-// MARK: - Extensions
-
-extension LoggingManager {
-    /// Creates a scoped logger for a specific category
-    /// - Parameter category: The category name for the scoped logger
-    /// - Returns: A logging instance that automatically includes the category
-    func scoped(for category: String) -> Logging {
-        return ScopedLogger(logger: self, category: category)
-    }
-}
-
-/// A wrapper class that provides scoped logging with a fixed category
-private class ScopedLogger: Logging {
-    private let logger: Logging
-    private let category: String
-    
-    init(logger: Logging, category: String) {
-        self.logger = logger
-        self.category = category
-    }
-    
-    func log(_ message: String, level: LogLevel, category: String?) {
-        logger.log(message, level: level, category: self.category)
-    }
-    
-    func debug(_ message: String, category: String?) {
-        logger.debug(message, category: self.category)
-    }
-    
-    func info(_ message: String, category: String?) {
-        logger.info(message, category: self.category)
-    }
-    
-    func warning(_ message: String, category: String?) {
-        logger.warning(message, category: self.category)
-    }
-    
-    func error(_ message: String, category: String?) {
-        logger.error(message, category: self.category)
-    }
-    
-    func critical(_ message: String, category: String?) {
-        logger.critical(message, category: self.category)
     }
 }
