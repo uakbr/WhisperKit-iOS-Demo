@@ -28,6 +28,9 @@ struct WhisperKitDemoApp: App {
 class DependencyContainer {
     // MARK: - Core Dependencies
     
+    private let errorRecoveryManager = ErrorRecoveryManager()
+    private let stateRecoveryManager = StateRecoveryManager()
+    private let crashReporter = CrashReporter()
     private let fileManager: FileManaging
     private let errorManager: ErrorHandling
     private let logger: Logging
@@ -42,46 +45,55 @@ class DependencyContainer {
     
     init() {
         // Initialize core dependencies
-        logger = LoggingManager()
+        let loggingManager = LoggingManager()
+        self.logger = loggingManager
         
-        fileManager = AudioFileManager(
+        let errorManager = ErrorManager(
+            errorRecoveryManager: errorRecoveryManager,
+            stateRecoveryManager: stateRecoveryManager,
+            crashReporter: crashReporter
+        )
+        self.errorManager = errorManager
+        
+        let fileManager = AudioFileManager(
+            errorManager: errorManager,
             logger: logger
         )
-        
-        errorManager = ErrorManager(
-            logger: logger
-        )
+        self.fileManager = fileManager
         
         // Initialize feature dependencies
-        modelManager = ModelManager(
+        let modelManager = ModelManager(
+            fileManager: fileManager,
+            errorManager: errorManager,
+            logger: logger
+        )
+        self.modelManager = modelManager
+        
+        self.audioModel = AudioModel(
             fileManager: fileManager,
             errorManager: errorManager,
             logger: logger
         )
         
-        audioModel = AudioModel(
+        let transcriptionManager = TranscriptionManager(
+            modelManager: modelManager,
+            errorManager: errorManager,
+            logger: logger
+        )
+        
+        self.transcriptionModel = TranscriptionModel(
+            transcriptionManager: transcriptionManager,
             fileManager: fileManager,
             errorManager: errorManager,
             logger: logger
         )
         
-        transcriptionModel = TranscriptionModel(
-            transcriptionManager: TranscriptionManager(
-                modelManager: modelManager,
-                errorManager: errorManager,
-                logger: logger
-            ),
-            fileManager: fileManager,
+        self.settingsModel = SettingsModel(
             errorManager: errorManager,
             logger: logger
         )
         
-        settingsModel = SettingsModel(
-            errorManager: errorManager,
-            logger: logger
-        )
-        
-        errorModel = ErrorModel(
+        self.errorModel = ErrorModel(
             errorManager: errorManager
         )
     }
