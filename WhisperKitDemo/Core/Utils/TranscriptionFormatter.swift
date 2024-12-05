@@ -29,32 +29,36 @@ class TranscriptionFormatter {
     // MARK: - Static Methods
     
     static func formatForExport(_ transcription: TranscriptionResult, includeMetadata: Bool = true) -> String {
-        var output = []
+        var outputComponents: [String] = []
         
         if includeMetadata {
-            output.append("[Transcription Metadata]")
-            output.append("Date: \(formatDate(transcription.timestamp))")
+            outputComponents.append("[Transcription Metadata]")
+            outputComponents.append("Date: " + formatDate(transcription.timestamp))
+            
             if let language = transcription.language {
-                output.append("Language: \(Locale.current.localizedString(forLanguageCode: language) ?? language)")
+                let localizedLanguage = Locale.current.localizedString(forLanguageCode: language) ?? language
+                outputComponents.append("Language: " + localizedLanguage)
             }
-            output.append("Duration: \(formatDuration(transcription.duration))")
-            output.append("")
+            
+            outputComponents.append("Duration: " + formatDuration(transcription.duration))
+            outputComponents.append("")
         }
         
-        output.append("[Transcription]")
-        output.append(transcription.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        outputComponents.append("[Transcription]")
+        outputComponents.append(transcription.text.trimmingCharacters(in: .whitespacesAndNewlines))
         
         if includeMetadata && !transcription.segments.isEmpty {
-            output.append("")
-            output.append("[Segments]")
+            outputComponents.append("")
+            outputComponents.append("[Segments]")
+            
             for segment in transcription.segments {
-                let timestamp = "\(formatDuration(segment.start)) -> \(formatDuration(segment.end)):"
-                let confidence = "(\(Int(segment.probability * 100))% confidence)"
-                output.append("\(timestamp) \(segment.text) \(confidence)")
+                let timestamp = formatDuration(segment.start) + " -> " + formatDuration(segment.end)
+                let confidenceStr = String(format: "(%d%% confidence)", Int(segment.probability * 100))
+                outputComponents.append(timestamp + ": " + segment.text + " " + confidenceStr)
             }
         }
         
-        return output.joined(separator: "\n")
+        return outputComponents.joined(separator: "\n")
     }
     
     private static func formatDate(_ date: Date) -> String {
@@ -104,10 +108,11 @@ class TranscriptionFormatter {
     }
     
     // MARK: - Private Methods
+    
     private func generateTitle(for transcription: TranscriptionData) -> String {
         let date = formatDate(transcription.timestamp, style: .short)
         let preview = transcription.text.prefix(50).trimmingCharacters(in: .whitespacesAndNewlines)
-        return "\(date) - \(preview)..."
+        return date + " - " + preview + "..."
     }
     
     private func formatDate(_ date: Date, style: DateFormatter.Style = .medium) -> String {
@@ -125,7 +130,7 @@ class TranscriptionFormatter {
         // Apply text formatting rules
         var formattedText = text
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "\s+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: " +", with: " ", options: .regularExpression)
         
         // Ensure proper capitalization
         if !formattedText.isEmpty {
@@ -133,7 +138,7 @@ class TranscriptionFormatter {
         }
         
         // Ensure proper punctuation
-        if !formattedText.isEmpty && !".,!?".contains(formattedText.last!) {
+        if !formattedText.isEmpty, !".,!?".contains(formattedText.last!) {
             formattedText += "."
         }
         
@@ -155,4 +160,24 @@ class TranscriptionFormatter {
     private func formatConfidence(_ confidence: Float) -> String {
         return String(format: "%.1f%%", confidence * 100)
     }
+}
+
+// MARK: - Supporting Types
+
+struct FormattedTranscription: Identifiable {
+    let id: UUID
+    let title: String
+    let formattedDate: String
+    let formattedDuration: String
+    let text: String
+    let language: String
+    let segments: [FormattedSegment]
+}
+
+struct FormattedSegment: Identifiable {
+    let id: UUID
+    let startTime: String
+    let endTime: String
+    let text: String
+    let confidence: String
 }
