@@ -1,69 +1,55 @@
-//
-// TranscriptionResultView.swift
-// WhisperKitDemo
-//
-// Created by Claude on 2024-03-12.
-// Copyright © 2024 Anthropic. All rights reserved.
-//
-
 import SwiftUI
 
+/// View for displaying transcription results
 struct TranscriptionResultView: View {
-    let result: TranscriptionResult
+    let transcription: TranscriptionResult
     @ObservedObject var audioModel: AudioModel
-    @Environment(\.settingsModel) var settings
+    @Environment(\.dismiss) var dismiss
     
-    @State private var selectedSegmentID: UUID?
-    @State private var isPlaying = false
+    @State private var selectedSegmentId: UUID?
     @State private var showShareSheet = false
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // Metadata Section
-                VStack(alignment: .leading, spacing: 8) {
-                    if let language = result.language {
+                HStack {
+                    if let language = transcription.language {
                         Label(
                             Locale.current.localizedString(forLanguageCode: language) ?? language,
                             systemImage: "globe"
                         )
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                     }
                     
-                    Label(
-                        formatDuration(result.duration),
-                        systemImage: "clock"
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    Spacer()
+                    
+                    Text(formatDuration(transcription.duration))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 .padding()
-                .background(Color(.systemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .shadow(radius: 2)
                 
                 // Full Text Section
-                Text(result.text)
+                Text(transcription.text)
                     .font(.body)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(radius: 2)
                 
-                if settings.showTimestamps {
-                    // Segments Section
-                    ForEach(result.segments) { segment in
-                        SegmentView(segment: segment,
-                                   isSelected: selectedSegmentID == segment.id,
-                                   onTap: { seekToSegment(segment) })
-                    }
+                // Segments Section
+                ForEach(transcription.segments) { segment in
+                    SegmentView(
+                        segment: segment,
+                        isSelected: selectedSegmentId == segment.id,
+                        onTap: { seekToSegment(segment) }
+                    )
                 }
             }
             .padding()
         }
-        .navigationTitle("Transcription Result")
+        .navigationTitle("Transcription")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showShareSheet = true }) {
@@ -72,24 +58,19 @@ struct TranscriptionResultView: View {
             }
         }
         .sheet(isPresented: $showShareSheet) {
-            ShareSheet(items: [result.text])
+            ShareSheet(activityItems: [transcription.text])
         }
     }
     
     private func seekToSegment(_ segment: TranscriptionSegment) {
-        selectedSegmentID = segment.id
+        selectedSegmentId = segment.id
         audioModel.seek(to: segment.start)
-        
-        if !audioModel.isPlaying {
-            audioModel.startPlayback()
-        }
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.minute, .second]
-        formatter.unitsStyle = .abbreviated
-        return formatter.string(from: duration) ?? "0s"
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
@@ -103,29 +84,29 @@ private struct SegmentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(formatTimestamp(segment.start))
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     
                     Text("-")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     
                     Text(formatTimestamp(segment.end))
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     
                     Spacer()
                     
                     Text("\(Int(segment.probability * 100))%")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 
                 Text(segment.text)
                     .font(.body)
+                    .padding(.top, 2)
             }
             .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? Color.accentColor.opacity(0.1) : Color(.systemBackground))
@@ -134,7 +115,6 @@ private struct SegmentView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
             )
-            .shadow(radius: 2)
         }
         .buttonStyle(.plain)
     }
@@ -151,7 +131,7 @@ struct TranscriptionResultView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
             TranscriptionResultView(
-                result: PreviewMocks.transcriptionResult,
+                transcription: PreviewMocks.transcriptionResult,
                 audioModel: PreviewMocks.audioModel
             )
         }
