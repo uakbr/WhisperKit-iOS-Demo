@@ -6,19 +6,29 @@ import CoreML
 class ModelPerformanceOptimizer {
     // MARK: - Properties
     private let deviceCapabilities: DeviceCapabilities
+    private let logger: Logging
     
     // MARK: - Initialization
-    init() {
+    init(logger: Logging) {
         self.deviceCapabilities = DeviceCapabilities()
+        self.logger = logger.scoped(for: "ModelPerformanceOptimizer")
     }
     
     // MARK: - Public Methods
     func optimize(_ model: WhisperModel) async throws -> WhisperModel {
+        logger.debug("Starting model optimization")
+        logger.debug("Available memory: \(formatBytes(deviceCapabilities.availableMemory))")
+        logger.debug("Neural Engine: \(deviceCapabilities.hasNeuralEngine)")
+        logger.debug("GPU: \(deviceCapabilities.hasGPU)")
+        
         // Create configuration based on device capabilities
         let config = try createOptimalConfiguration()
         
         // Apply optimizations
-        return try await optimizeModel(model, with: config)
+        let optimizedModel = try await optimizeModel(model, with: config)
+        logger.info("Model optimization completed successfully")
+        
+        return optimizedModel
     }
     
     // MARK: - Private Methods
@@ -28,10 +38,13 @@ class ModelPerformanceOptimizer {
         // Configure compute units based on device capabilities
         if deviceCapabilities.hasNeuralEngine {
             config.computeUnits = .all
+            logger.debug("Using all compute units (CPU + Neural Engine + GPU)")
         } else if deviceCapabilities.hasGPU {
             config.computeUnits = .cpuAndGPU
+            logger.debug("Using CPU and GPU")
         } else {
             config.computeUnits = .cpuOnly
+            logger.debug("Using CPU only")
         }
         
         // Set memory options
@@ -48,6 +61,7 @@ class ModelPerformanceOptimizer {
         // Configure batch processing
         let batchSize = determineBatchSize()
         try await model.setBatchSize(batchSize)
+        logger.debug("Set batch size to: \(batchSize)")
         
         // Set up memory management
         try configureMemoryManagement(for: model)
@@ -72,11 +86,13 @@ class ModelPerformanceOptimizer {
         // Set up memory pools and caches
         if deviceCapabilities.hasGPU {
             try model.enableGPUMemoryPool()
+            logger.debug("Enabled GPU memory pool")
         }
         
         // Configure cache size based on available memory
         let cacheSize = calculateOptimalCacheSize()
         try model.setCacheSize(cacheSize)
+        logger.debug("Set cache size to: \(cacheSize)")
     }
     
     private func calculateOptimalCacheSize() -> Int {
@@ -89,6 +105,25 @@ class ModelPerformanceOptimizer {
         } else {
             return 512 // Smaller cache for limited memory
         }
+    }
+    
+    private func formatBytes(_ bytes: Int) -> String {
+        let gigabyte = Double(bytes) / 1_073_741_824
+        if gigabyte >= 1 {
+            return String(format: "%.1f GB", gigabyte)
+        }
+        
+        let megabyte = Double(bytes) / 1_048_576
+        if megabyte >= 1 {
+            return String(format: "%.1f MB", megabyte)
+        }
+        
+        let kilobyte = Double(bytes) / 1_024
+        if kilobyte >= 1 {
+            return String(format: "%.1f KB", kilobyte)
+        }
+        
+        return "\(bytes) bytes"
     }
 }
 
@@ -106,13 +141,23 @@ class DeviceCapabilities {
     }
     
     var availableMemory: Int {
-        var pagesize: vm_size_t = 0
-        var memsize: vm_size_t = 0
+        var stats = vm_statistics64()
+        var size = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride)
+        let result = withUnsafeMutablePointer(to: &stats) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(size)) {
+                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &size)
+            }
+        }
         
-        host_page_size(mach_host_self(), &pagesize)
-        host_statistics(mach_host_self(), HOST_VM_INFO, nil, &memsize)
+        guard result == KERN_SUCCESS else {
+            return 2 * 1024 * 1024 * 1024 // Default to 2GB if unable to get memory stats
+        }
         
-        return Int(memsize) * Int(pagesize)
+        let pageSize = vm_kernel_page_size
+        let freeMemory = Int(stats.free_count) * Int(pageSize)
+        let totalMemory = ProcessInfo.processInfo.physicalMemory
+        
+        return min(Int(freeMemory), Int(totalMemory))
     }
     
     var computePerformanceScore: Float {
