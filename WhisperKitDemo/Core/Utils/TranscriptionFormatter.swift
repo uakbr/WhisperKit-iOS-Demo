@@ -1,3 +1,11 @@
+//
+// TranscriptionFormatter.swift
+// WhisperKitDemo
+//
+// Created by Claude on 2024-03-12.
+// Copyright © 2024 Anthropic. All rights reserved.
+//
+
 import Foundation
 
 /// Formats transcriptions for presentation and storage
@@ -21,29 +29,32 @@ class TranscriptionFormatter {
     // MARK: - Static Methods
     
     static func formatForExport(_ transcription: TranscriptionResult, includeMetadata: Bool = true) -> String {
-        var output = ""
+        var output = []
         
         if includeMetadata {
-            output += "[Transcription Metadata]\n"
-            output += "Date: \(formatDate(transcription.timestamp))\n"
+            output.append("[Transcription Metadata]")
+            output.append("Date: \(formatDate(transcription.timestamp))")
             if let language = transcription.language {
-                output += "Language: \(Locale.current.localizedString(forLanguageCode: language) ?? language)\n"
+                output.append("Language: \(Locale.current.localizedString(forLanguageCode: language) ?? language)")
             }
-            output += "Duration: \(formatDuration(transcription.duration))\n\n"
+            output.append("Duration: \(formatDuration(transcription.duration))")
+            output.append("")
         }
         
-        output += "[Transcription]\n"
-        output += transcription.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        output.append("[Transcription]")
+        output.append(transcription.text.trimmingCharacters(in: .whitespacesAndNewlines))
         
         if includeMetadata && !transcription.segments.isEmpty {
-            output += "\n\n[Segments]\n"
+            output.append("")
+            output.append("[Segments]")
             for segment in transcription.segments {
-                output += "\(formatDuration(segment.start)) -> \(formatDuration(segment.end)): "
-                output += "\(segment.text) (\(Int(segment.probability * 100))% confidence)\n"
+                let timestamp = "\(formatDuration(segment.start)) -> \(formatDuration(segment.end)):"
+                let confidence = "(\(Int(segment.probability * 100))% confidence)"
+                output.append("\(timestamp) \(segment.text) \(confidence)")
             }
         }
         
-        return output
+        return output.joined(separator: "\n")
     }
     
     private static func formatDate(_ date: Date) -> String {
@@ -143,47 +154,5 @@ class TranscriptionFormatter {
     
     private func formatConfidence(_ confidence: Float) -> String {
         return String(format: "%.1f%%", confidence * 100)
-    }
-}
-
-// MARK: - Supporting Types
-struct FormattedTranscription: Identifiable {
-    let id: UUID
-    let title: String
-    let formattedDate: String
-    let formattedDuration: String
-    let text: String
-    let language: String
-    let segments: [FormattedSegment]
-}
-
-struct FormattedSegment: Identifiable {
-    let id: UUID
-    let startTime: String
-    let endTime: String
-    let text: String
-    let confidence: String
-}
-
-struct TranscriptionSegment: Identifiable {
-    let id: UUID
-    let startTime: TimeInterval
-    let endTime: TimeInterval
-    let text: String
-    let confidence: Float
-}
-
-// MARK: - Extension Methods
-extension TranscriptionData {
-    var formattedText: String {
-        return TranscriptionFormatter().formatText(text)
-    }
-    
-    var formattedDuration: String {
-        return TranscriptionFormatter().formatDuration(duration)
-    }
-    
-    var formattedDate: String {
-        return TranscriptionFormatter().formatDate(timestamp)
     }
 }
