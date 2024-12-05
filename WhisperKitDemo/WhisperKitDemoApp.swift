@@ -33,7 +33,7 @@ class DependencyContainer: ObservableObject {
     private let crashReporter: CrashReporter
     private let fileManager: FileManaging
     private let errorManager: ErrorHandling
-    private let logger: Logging
+    private let loggingManager: LoggingManager
     
     // MARK: - Feature Dependencies
     
@@ -45,61 +45,63 @@ class DependencyContainer: ObservableObject {
     
     init() {
         // Initialize core dependencies
-        self.errorRecoveryManager = ErrorRecoveryManager()
-        self.stateRecoveryManager = StateRecoveryManager()
-        self.crashReporter = CrashReporter()
-        
-        let loggingManager = LoggingManager()
-        self.logger = loggingManager
-        
-        let errorManager = ErrorManager(
-            errorRecoveryManager: errorRecoveryManager,
-            stateRecoveryManager: stateRecoveryManager,
-            crashReporter: crashReporter
-        )
-        self.errorManager = errorManager
-        
-        let fileManager = AudioFileManager(
-            errorManager: errorManager,
-            logger: loggingManager
-        )
-        self.fileManager = fileManager
-        
-        // Initialize feature dependencies
-        let modelManager = ModelManager(
-            fileManager: fileManager,
-            errorManager: errorManager,
-            logger: loggingManager
-        )
-        self.modelManager = modelManager
-        
-        self.audioModel = AudioModel(
-            fileManager: fileManager,
-            errorManager: errorManager,
-            logger: loggingManager
-        )
-        
-        let transcriptionManager = TranscriptionManager(
-            modelManager: modelManager,
-            errorManager: errorManager,
-            logger: loggingManager
-        )
-        
-        self.transcriptionModel = TranscriptionModel(
-            transcriptionManager: transcriptionManager,
-            fileManager: fileManager,
-            errorManager: errorManager,
-            logger: loggingManager
-        )
-        
-        self.settingsModel = SettingsModel(
-            errorManager: errorManager,
-            logger: loggingManager
-        )
-        
-        self.errorModel = ErrorModel(
-            errorManager: errorManager
-        )
+        do {
+            self.errorRecoveryManager = ErrorRecoveryManager()
+            self.stateRecoveryManager = StateRecoveryManager()
+            self.crashReporter = CrashReporter()
+            
+            self.loggingManager = LoggingManager()
+            
+            let errorManager = ErrorManager(
+                errorRecoveryManager: errorRecoveryManager,
+                stateRecoveryManager: stateRecoveryManager,
+                crashReporter: crashReporter
+            )
+            self.errorManager = errorManager
+            
+            let fileManager = AudioFileManager(
+                errorManager: errorManager
+            )
+            self.fileManager = fileManager
+            
+            // Initialize feature dependencies
+            let modelManager = ModelManager(
+                fileManager: fileManager,
+                errorManager: errorManager,
+                logger: loggingManager
+            )
+            self.modelManager = modelManager
+            
+            self.audioModel = AudioModel(
+                fileManager: fileManager,
+                errorManager: errorManager,
+                logger: loggingManager
+            )
+            
+            let transcriptionManager = TranscriptionManager(
+                modelManager: modelManager,
+                errorManager: errorManager,
+                logger: loggingManager
+            )
+            
+            self.transcriptionModel = TranscriptionModel(
+                transcriptionManager: transcriptionManager,
+                fileManager: fileManager,
+                errorManager: errorManager,
+                logger: loggingManager
+            )
+            
+            self.settingsModel = SettingsModel(
+                errorManager: errorManager,
+                logger: loggingManager
+            )
+            
+            self.errorModel = ErrorModel(
+                errorManager: errorManager
+            )
+        } catch {
+            fatalError("Failed to initialize dependencies: \(error)")
+        }
     }
 }
 
