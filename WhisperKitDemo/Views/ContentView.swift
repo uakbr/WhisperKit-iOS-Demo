@@ -41,8 +41,11 @@ struct ContentView: View {
                         TranscriptionProgressView(
                             progress: transcriptionModel.transcriptionProgress
                         )
-                    } else if let result = transcriptionModel.transcriptions.last {
-                        TranscriptionResultView(result: result)
+                    } else if let transcription = transcriptionModel.transcriptions.last {
+                        TranscriptionResultView(
+                            transcription: transcription,
+                            audioModel: audioModel
+                        )
                     } else {
                         EmptyStateView()
                     }
